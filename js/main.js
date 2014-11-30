@@ -16,6 +16,7 @@ var Game = (function() {
   self.camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
   self.camera.position.y = 5;
   self.camera.position.z = 30;
+  self.currentCamera = self.camera;
 
   // Add lighting
   var light = new THREE.DirectionalLight(0xFFFFFF);
@@ -36,8 +37,13 @@ Game.prototype.setupKeyboard = function() {
   var self = this;
   self.prevTime = Date.now();
   self.k = new Kibo();
-  self.k.up(['up','down', 'left', 'right'], self.processKeys);
-  self.k.up(['w','a', 's', 'd'], self.processKeys);
+  self.k.down(['w','a', 's', 'd'], self.processKeys);
+  // change which camera to use
+  self.k.up('y', function() {
+    if (game.currentCamera === game.tankCamera)
+      game.currentCamera = game.camera;
+    else game.currentCamera = game.tankCamera;
+  });
 }
 
 Game.prototype.processKeys = function() {
@@ -74,7 +80,7 @@ Game.prototype.render = function(delta) {
     self.prevTime = time;
   }
 
-  self.renderer.render(self.scene, self.tankCamera);
+  self.renderer.render(self.scene, self.currentCamera);
 }
 
 window.animate = function(delta) {
