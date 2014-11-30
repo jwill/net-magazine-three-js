@@ -112,6 +112,16 @@ Game.prototype.initModels = function() {
     scope.tank.position.y = 0.4;
     scope.scene.add(scope.tank);
 
+    // hide this object later
+    var lookAtHelper = new THREE.Mesh(
+      new THREE.CubeGeometry(0.25,0.25,0.25),
+      new THREE.MeshBasicMaterial({color: 0xFFFFFF}),
+      0
+    )
+    var tankPos = scope.tank.position;
+    lookAtHelper.position.set(tankPos.x + 4, tankPos.y + 1, tankPos.z);
+    scope.tank.add(lookAtHelper);
+
     var bbox = new THREE.BoundingBoxHelper( scope.tank);
     bbox.update();
     game.bboxes.push(bbox);
@@ -155,10 +165,11 @@ Game.prototype.initModels = function() {
     // Set scale to 5% of original
     scope.palm.scale.set(0.5, 0.5, 0.5);
     scope.scene.add(scope.palm);
-
-    scope.animation = new THREE.MorphAnimation( scope.human2 );
-    scope.animation.play();
   });
+}
+
+Game.prototype.placePalms = function() {
+
 }
 
 function getRoot() {
