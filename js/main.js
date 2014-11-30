@@ -74,7 +74,7 @@ Game.prototype.render = function(delta) {
     self.prevTime = time;
   }
 
-  self.renderer.render(self.scene, self.camera);
+  self.renderer.render(self.scene, self.tankCamera);
 }
 
 window.animate = function(delta) {
@@ -91,6 +91,8 @@ Game.prototype.loadScene = function() {
   planeMesh.scale.set(20,0.01,20)
   planeMesh.position.set(0,0,0)
   this.scene.add(planeMesh)
+
+  this.initModels();
 }
 
 Game.prototype.updateBoundingBoxes = function() {
@@ -108,7 +110,7 @@ Game.prototype.initModels = function() {
   loader.load('model/tank_distribution.json', function(geometry, material) {
     var texture = THREE.ImageUtils.loadTexture("model/traveller_1.png");
     var material = new THREE.MeshLambertMaterial({color:0xFFFFFF, map:texture});
-    scope.tank = new THREE.SkinnedMesh(geometry, material);
+    scope.tank = new THREE.Mesh(geometry, material);
     scope.tank.position.y = 0.4;
     scope.scene.add(scope.tank);
 
@@ -122,6 +124,12 @@ Game.prototype.initModels = function() {
     lookAtHelper.position.set(tankPos.x + 4, tankPos.y + 1, tankPos.z);
     scope.tank.add(lookAtHelper);
 
+    scope.tankCamera = new THREE.PerspectiveCamera(45, 1.3333, 0.01, 1000);
+    scope.tankCamera.position.set(tankPos.x-0.25, tankPos.y + 0.75, tankPos.z);
+    scope.tankCamera.lookAt(lookAtHelper.position);
+    scope.tank.add(scope.tankCamera);
+
+
     var bbox = new THREE.BoundingBoxHelper( scope.tank);
     bbox.update();
     game.bboxes.push(bbox);
@@ -131,7 +139,7 @@ Game.prototype.initModels = function() {
   loader.load('model/soldier.json', function(geometry, material) {
     var texture = THREE.ImageUtils.loadTexture("model/poss_body.png");
     var material = new THREE.MeshLambertMaterial({color:0xFFFFFF, map:texture, morphTargets: true});
-    scope.human = new THREE.SkinnedMesh(geometry, material);
+    scope.human = new THREE.MorphAnimMesh(geometry, material);
     scope.human.position.y = 0.4;
     scope.human.position.x = 5;
     // Set scale to 5% of original
@@ -145,7 +153,7 @@ Game.prototype.initModels = function() {
   loader.load('model/chaingunner.json', function(geometry, material) {
     var texture = THREE.ImageUtils.loadTexture("model/chaingunner_body.png");
     var material = new THREE.MeshLambertMaterial({color:0xFFFFFF, map:texture, morphTargets: true});
-    scope.human2 = new THREE.SkinnedMesh(geometry, material);
+    scope.human2 = new THREE.MorphAnimMesh(geometry, material);
     scope.human2.position.y = 0.4;
     scope.human2.position.x = 8;
     // Set scale to 5% of original
@@ -159,7 +167,7 @@ Game.prototype.initModels = function() {
   loader.load('model/palm2.json', function(geometry, material) {
     var texture = THREE.ImageUtils.loadTexture("model/canopy.png");
     var material = new THREE.MeshLambertMaterial({color:0xFFFFFF, map:texture});
-    scope.palm = new THREE.SkinnedMesh(geometry, material);
+    scope.palm = new THREE.Mesh(geometry, material);
     scope.palm.position.y = 0.4;
     scope.palm.position.x = -8;
     // Set scale to 5% of original
@@ -178,6 +186,5 @@ function getRoot() {
 
 var game = new Game();
 game.loadScene();
-game.initModels();
 game.setupKeyboard();
 animate();
