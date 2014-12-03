@@ -1,7 +1,8 @@
+
+
 var Game = (function() {
   var self = this;
   var height, width, fov, aspect, near, far;
-  var renderer, scene, camera;
   var animation;
   height = 480;
   width = 640;
@@ -10,91 +11,108 @@ var Game = (function() {
   aspect = width/height;
   near = 0.1; far = 10000;
 
+  self.wasPressed = {};
+  self.clock = new THREE.Clock();
+  self.keyboard = new THREEx.KeyboardState();
   self.renderer = new THREE.WebGLRenderer();
   self.renderer.setSize(width, height);
 
   self.camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
   self.camera.position.y = 5;
   self.camera.position.z = 30;
+
+
+  self.godCamera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+  self.godCamera.position.y = 400;
+  self.godCamera.lookAt(new THREE.Vector3(0,0,0));
+
   self.currentCamera = self.camera;
 
   // Add lighting
-  var light = new THREE.DirectionalLight(0xFFFFFF);
+  var light = new THREE.DirectionalLight(0xFFFFFF, 0.75);
 
-  light.position.set(0,100, 40);
-
+  light.position.set(0,200, 40);
 
   self.scene = new THREE.Scene();
   self.scene.add(this.camera);
   self.scene.add(light);
 
+  var ambLight = new THREE.AmbientLight(0x404040);
+  self.scene.add(ambLight);
+
   document.querySelector('#c').appendChild(this.renderer.domElement)
+
+  // Make sure change camera doesn't auto repeat
+  self.keyboard.domElement.addEventListener('keyup', function(event){
+    if (self.keyboard.eventMatches(event, 'Y')) {
+      self.wasPressed['Y'] = false;
+    }
+  });
+
 
   return self;
 });
 
-Game.prototype.setupKeyboard = function() {
-  var self = this;
-  self.prevTime = Date.now();
-  self.k = new Kibo();
-  self.k.down(['w','a', 's', 'd'], self.processKeys);
-  // change which camera to use
-  self.k.up('y', function() {
-    if (game.currentCamera === game.tankCamera)
-      game.currentCamera = game.camera;
-    else game.currentCamera = game.tankCamera;
-  });
-}
+Game.prototype.processKeys = function(delta) {
+  var root = getRoot();
+  //var delta = root.clock.getDelta();
+  var keyboard = root.keyboard;
+  var moveDelta = 20 * delta;
 
-Game.prototype.processKeys = function() {
-  var key = getRoot().k.lastKey();
-  switch(key) {
-    case 'up':case 'w':
-      console.log('move forward');
-
-      break;
-    case 'down':case 's':
-      console.log('move backward');
-      break;
-    case 'left':case 'a':
-      game.tank.rotation.y += 0.1;
-      game.updateBoundingBoxes();
-      break;
-    case 'right':case 'd':
-      game.tank.rotation.y -= 0.1;
-      game.updateBoundingBoxes();
-      break;
-    default:
-      break;
+  if (keyboard.pressed('W')) {
+    root.tank.translateX(moveDelta);
+  }
+  if (keyboard.pressed('S')) {
+    root.tank.translateX(-moveDelta);
+  }
+  if (keyboard.pressed('A')) {
+    root.tank.rotateOnAxis( new THREE.Vector3(0,1,0), 0.1);
+  }
+  if (keyboard.pressed('D')) {
+    root.tank.rotateOnAxis( new THREE.Vector3(0,1,0), -0.1);
   }
 
-  console.log(getRoot().k.lastKey());
+  if (keyboard.pressed('B')) {
+    // toggle bounding boxes
+    for (i in root.bboxes) {
+      root.bboxes[i].visible = false
+    }
+  }
+
+  // Change camera
+  if (keyboard.pressed('Y') && !root.wasPressed['Y']) {
+    root.wasPressed['Y'] = true;
+    if (root.currentCamera === root.tankCamera)
+      root.currentCamera = root.camera;
+    else root.currentCamera = root.tankCamera;
+  }
+
+  root.updateBoundingBoxes();
 }
 
 Game.prototype.render = function(delta) {
   var self = this;
   if ( self.animation ) {
-
-    var time = Date.now();
-    self.animation.update(time - self.prevTime );
-    self.prevTime = time;
+    self.animation.update(1000 * delta);
   }
 
   self.renderer.render(self.scene, self.currentCamera);
 }
 
-window.animate = function(delta) {
+window.animate = function() {
   requestAnimationFrame(window.animate);
+  var delta = window.game.clock.getDelta();
+  window.game.processKeys(delta);
   window.game.render(delta);
 }
 
 Game.prototype.loadScene = function() {
   var planeMesh = new THREE.Mesh(
-    new THREE.CubeGeometry(100,1,100),
-    new THREE.MeshBasicMaterial({color: 0x085A14}),
-    0
+    new THREE.PlaneBufferGeometry(400,550 ,32),
+    new THREE.MeshPhongMaterial({color: 0x085A14, side: THREE.DoubleSide})
   )
-  planeMesh.scale.set(20,0.01,20)
+  planeMesh.rotation.x = -1.58
+  //planeMesh.scale.set(5, 5)
   planeMesh.position.set(0,0,0)
   this.scene.add(planeMesh)
 
@@ -105,6 +123,24 @@ Game.prototype.updateBoundingBoxes = function() {
   for (index in game.bboxes) {
     game.bboxes[index].update();
   }
+}
+
+Game.prototype.createEnemyTank = function() {
+  var tank = this.tank.clone();
+  var material = this.tank.material.clone();
+  material.color.set(0x550055);
+
+  tank.material = material;
+  tank.position.set(0,0,-5);
+  this.scene.add(tank);
+
+  var curve = new THREE.EllipseCurve(
+    0,  0,            // ax, aY
+    200, 200,           // xRadius, yRadius
+    0,  2 * Math.PI,  // aStartAngle, aEndAngle
+    false             // aClockwise
+  );
+  var points = curve.getPoints(100);
 }
 
 Game.prototype.initModels = function() {
@@ -122,7 +158,7 @@ Game.prototype.initModels = function() {
 
     // hide this object later
     var lookAtHelper = new THREE.Mesh(
-      new THREE.CubeGeometry(0.25,0.25,0.25),
+      new THREE.BoxGeometry(0.25,0.25,0.25),
       new THREE.MeshBasicMaterial({color: 0xFFFFFF}),
       0
     )
@@ -176,9 +212,22 @@ Game.prototype.initModels = function() {
     scope.palm = new THREE.Mesh(geometry, material);
     scope.palm.position.y = 0.4;
     scope.palm.position.x = -8;
-    // Set scale to 5% of original
-    scope.palm.scale.set(0.5, 0.5, 0.5);
+    // Set scale to 30% of original
+    scope.palm.scale.set(0.3, 0.3, 0.3);
+    var palm_clone = scope.palm.clone();
     scope.scene.add(scope.palm);
+
+    palm_clone.rotation.y = THREE.Math.degToRad(180);
+    scope.scene.add(palm_clone);
+  });
+
+  loader.load('model/bunker.json', function(geometry, material) {
+    scope.bunker = new THREE.Mesh(geometry, new THREE.MeshFaceMaterial(material));
+    scope.bunker.position.y = -0.8;
+    scope.bunker.position.z = -200;
+    scope.bunker.rotation.y = 90;
+    scope.bunker.scale.set(10, 10, 10);
+    scope.scene.add(scope.bunker);
   });
 }
 
@@ -192,5 +241,4 @@ function getRoot() {
 
 var game = new Game();
 game.loadScene();
-game.setupKeyboard();
 animate();
