@@ -49,45 +49,47 @@ var Game = (function() {
     }
   });
 
-
   return self;
 });
 
 Game.prototype.processKeys = function(delta) {
-  var root = getRoot();
   //var delta = root.clock.getDelta();
-  var keyboard = root.keyboard;
+  var keyboard = this.keyboard;
   var moveDelta = 20 * delta;
 
   if (keyboard.pressed('W')) {
-    root.tank.translateX(moveDelta);
+    this.tank.translateX(moveDelta);
   }
   if (keyboard.pressed('S')) {
-    root.tank.translateX(-moveDelta);
+    this.tank.translateX(-moveDelta);
   }
   if (keyboard.pressed('A')) {
-    root.tank.rotateOnAxis( new THREE.Vector3(0,1,0), 0.1);
+    this.tank.rotateOnAxis( new THREE.Vector3(0,1,0), 0.1);
   }
   if (keyboard.pressed('D')) {
-    root.tank.rotateOnAxis( new THREE.Vector3(0,1,0), -0.1);
+    this.tank.rotateOnAxis( new THREE.Vector3(0,1,0), -0.1);
+  }
+  if (keyboard.pressed('space')) {
+    this.factory.shootBullet(this.tank);
   }
 
-  if (keyboard.pressed('B')) {
+  if (keyboard.pressed('B') && !this.wasPressed['B']) {
     // toggle bounding boxes
-    for (i in root.bboxes) {
-      root.bboxes[i].visible = false
+    this.wasPressed['B'] = true;
+    for (i in this.bboxes) {
+      this.bboxes[i].visible = !this.bboxes[i].visible
     }
   }
 
   // Change camera
-  if (keyboard.pressed('Y') && !root.wasPressed['Y']) {
-    root.wasPressed['Y'] = true;
-    if (root.currentCamera === root.tankCamera)
-      root.currentCamera = root.camera;
-    else root.currentCamera = root.tankCamera;
+  if (keyboard.pressed('Y') && !this.wasPressed['Y']) {
+    this.wasPressed['Y'] = true;
+    if (this.currentCamera === this.tankCamera)
+      this.currentCamera = this.camera;
+    else this.currentCamera = this.tankCamera;
   }
 
-  root.updateBoundingBoxes();
+  this.updateBoundingBoxes();
 }
 
 Game.prototype.render = function(delta) {
@@ -95,7 +97,15 @@ Game.prototype.render = function(delta) {
   if ( self.animation ) {
     self.animation.update(1000 * delta);
   }
-
+  if (self.enemyPath) {
+    self.enemyPath.update(1000 * delta);
+  }
+  if (self.gunnerPath) {
+    self.gunnerPath.update(1000 * delta);
+  }
+  if (self.factory) {
+    self.factory.updateBullets();
+  }
   self.renderer.render(self.scene, self.currentCamera);
 }
 
@@ -135,12 +145,14 @@ Game.prototype.createEnemyTank = function() {
   this.scene.add(tank);
 
   var curve = new THREE.EllipseCurve(
-    0,  0,            // ax, aY
-    200, 200,           // xRadius, yRadius
-    0,  2 * Math.PI,  // aStartAngle, aEndAngle
+    0,  -170,            // ax, aZ
+    70, 120,         // xRadius, yRadius
+    0,2 * Math.PI,  // aStartAngle, aEndAngle
     false             // aClockwise
   );
-  var points = curve.getPoints(100);
+  var points = curve.getPoints(1000);
+  this.enemyPath = new PathAnimation(tank, points, 0.5);
+  this.enemyPath.play();
 }
 
 Game.prototype.initModels = function() {
@@ -164,7 +176,7 @@ Game.prototype.initModels = function() {
     )
     var tankPos = scope.tank.position;
     lookAtHelper.position.set(tankPos.x + 4, tankPos.y + 1, tankPos.z);
-    scope.tank.add(lookAtHelper);
+    //scope.tank.add(lookAtHelper);
 
     scope.tankCamera = new THREE.PerspectiveCamera(45, 1.3333, 0.01, 1000);
     scope.tankCamera.position.set(tankPos.x-0.25, tankPos.y + 0.75, tankPos.z);
@@ -176,6 +188,10 @@ Game.prototype.initModels = function() {
     bbox.update();
     game.bboxes.push(bbox);
     scope.scene.add( bbox );
+
+    scope.factory = new BulletFactory(scope.scene, scope.tank);
+
+    scope.createEnemyTank();
   });
 
   loader.load('model/soldier.json', function(geometry, material) {
