@@ -4,8 +4,8 @@ var Game = (function() {
   var self = this;
   var height, width, fov, aspect, near, far;
   var animation;
-  height = 480;
-  width = 640;
+  height = 600;
+  width = 900;
 
   fov = 45;
   aspect = width/height;
@@ -155,6 +155,15 @@ Game.prototype.createEnemyTank = function() {
   this.enemyPath.play();
 }
 
+Game.prototype.createBoundingBox = function(mesh) {
+  var scope = this;
+  // If not Camera or other type
+  var bbox = new THREE.BoundingBoxHelper(mesh);
+  bbox.update();
+  game.bboxes.push(bbox);
+  scope.scene.add(bbox);
+}
+
 Game.prototype.initModels = function() {
   var scope = this;
   // Create bounding box helpers array
@@ -184,10 +193,7 @@ Game.prototype.initModels = function() {
     scope.tank.add(scope.tankCamera);
 
 
-    var bbox = new THREE.BoundingBoxHelper( scope.tank);
-    bbox.update();
-    game.bboxes.push(bbox);
-    scope.scene.add( bbox );
+    scope.createBoundingBox(scope.tank);
 
     scope.factory = new BulletFactory(scope.scene, scope.tank);
 
