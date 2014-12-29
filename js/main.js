@@ -11,6 +11,7 @@ var Game = (function() {
   aspect = width/height;
   near = 0.1; far = 10000;
 
+  self.boundingBoxesActive = true;
   self.wasPressed = {};
   self.clock = new THREE.Clock();
   self.keyboard = new THREEx.KeyboardState();
@@ -73,12 +74,10 @@ Game.prototype.processKeys = function(delta) {
     this.factory.shootBullet(this.tank);
   }
 
-  if (keyboard.pressed('B') && !this.wasPressed['B']) {
+  if (keyboard.pressed('B')) {
     // toggle bounding boxes
     this.wasPressed['B'] = true;
-    for (i in this.bboxes) {
-      this.bboxes[i].visible = !this.bboxes[i].visible
-    }
+    this.toggleBoundingBoxes();
   }
 
   // Change camera
@@ -129,6 +128,14 @@ Game.prototype.loadScene = function() {
   this.initModels();
 }
 
+Game.prototype.toggleBoundingBoxes = function() {
+  var state = !this.boundingBoxesActive;
+  for (i in this.bboxes) {
+      this.bboxes[i].visible = state;
+  }
+  this.boundingBoxesActive = state;
+}
+
 Game.prototype.updateBoundingBoxes = function() {
   for (index in game.bboxes) {
     game.bboxes[index].update();
@@ -136,12 +143,13 @@ Game.prototype.updateBoundingBoxes = function() {
 }
 
 Game.prototype.createEnemyTank = function() {
-  var tank = this.tank.clone();
-  var material = this.tank.material.clone();
-  material.color.set(0x550055);
+  var tank = this.enemyTank.clone();
+  //var material = this.enemyTank.material.clone();
+  //material.color.set(0x550055);
 
-  tank.material = material;
+  //tank.material = material;
   tank.position.set(0,0,-5);
+  this.createBoundingBox(tank);
   this.scene.add(tank);
 
   var curve = new THREE.EllipseCurve(
@@ -155,13 +163,23 @@ Game.prototype.createEnemyTank = function() {
   this.enemyPath.play();
 }
 
-Game.prototype.createBoundingBox = function(mesh) {
+Game.prototype.createBoundingBox = function(obj) {
   var scope = this;
   // If not Camera or other type
-  var bbox = new THREE.BoundingBoxHelper(mesh);
-  bbox.update();
-  game.bboxes.push(bbox);
-  scope.scene.add(bbox);
+  if (obj instanceof THREE.Camera) {
+    var helper = new THREE.CameraHelper(obj);
+    game.bboxes.push(helper);
+    game.scene.add(helper);
+  } else if(obj instanceof THREE.DirectionalLight) {
+    var helper = new THREE.DirectionalLightHelper(obj);
+    game.bboxes.push(helper);
+    game.scene.add(helper);
+  }else {
+    var bbox = new THREE.BoundingBoxHelper(obj);
+    bbox.update();
+    game.bboxes.push(bbox);
+    game.scene.add(bbox);
+  }
 }
 
 Game.prototype.initModels = function() {
@@ -197,7 +215,6 @@ Game.prototype.initModels = function() {
 
     scope.factory = new BulletFactory(scope.scene, scope.tank);
 
-    scope.createEnemyTank();
   });
 
   loader.load('model/soldier.json', function(geometry, material) {
@@ -224,6 +241,9 @@ Game.prototype.initModels = function() {
     scope.human2.scale.set(0.5, 0.5, 0.5);
     scope.scene.add(scope.human2);
 
+    scope.createBoundingBox(scope.human2);
+
+
     scope.animation = new THREE.MorphAnimation( scope.human2 );
     scope.animation.play();
   });
@@ -239,6 +259,8 @@ Game.prototype.initModels = function() {
     var palm_clone = scope.palm.clone();
     scope.scene.add(scope.palm);
 
+    scope.createBoundingBox(scope.palm);
+
     palm_clone.rotation.y = THREE.Math.degToRad(180);
     scope.scene.add(palm_clone);
   });
@@ -250,6 +272,26 @@ Game.prototype.initModels = function() {
     scope.bunker.rotation.y = 90;
     scope.bunker.scale.set(10, 10, 10);
     scope.scene.add(scope.bunker);
+
+    scope.createBoundingBox(scope.bunker);
+  });
+
+  loader.load('model/hellstorm_emplacement.json', function(geometry, material) {
+    scope.hellstorm = new THREE.Mesh(geometry, new THREE.MeshFaceMaterial(material));
+    var hellstorm1 = scope.hellstorm.clone();
+    hellstorm1.position.set(-40, -0.8, -50);
+    hellstorm1.scale.set(0.5, 0.5, 0.5);
+    hellstorm1.rotation.y = THREE.Math.degToRad(45);
+    scope.scene.add(hellstorm1);
+    scope.createBoundingBox(hellstorm1);
+  });
+
+  loader.load('model/tanks2.json', function(geometry, material) {
+    var enemyTank = new THREE.Mesh(geometry, new THREE.MeshFaceMaterial(material));
+    enemyTank.scale.set(0.5, 0.5, 0.5);
+    enemyTank.rotation.y = THREE.Math.degToRad(180);
+    scope.enemyTank = enemyTank;
+    scope.createEnemyTank();
   });
 }
 
